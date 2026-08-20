@@ -1,0 +1,52 @@
+import { NextResponse } from 'next/server';
+
+export async function GET(request: Request) {
+  try {
+    // Get latitude and longitude from the URL query
+    const { searchParams } = new URL(request.url);
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+
+    // If missing, return an error
+    if (!lat || !lng) {
+      return NextResponse.json(
+        { error: 'Missing lat or lng' },
+        { status: 400 }
+      );
+    }
+
+    // Get your Google API key from environment variables (keep it secret!)
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'API key not set on server' },
+        { status: 500 }
+      );
+    }
+
+    // Build the Google Places API URL
+    const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json');
+    url.searchParams.set('location', `${lat},${lng}`);
+    url.searchParams.set('radius', '15000'); // 15 km
+    url.searchParams.set('type', 'police');  // you can change to 'safe_place' or whatever
+    url.searchParams.set('key', apiKey);
+
+    // Fetch from Google (this happens on the server, so no CORS)
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      throw new Error(`Google API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Send the data back to the browser
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Nearby places error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch nearby places' },
+      { status: 500 }
+    );
+  }
+}
